@@ -1,0 +1,10 @@
+{
+  "name": "cdp-aws-estimator-bridge",
+  "private": true,
+  "type": "module",
+  "author": "Nijjwol Lamsal (https://github.com/nijjwol23)",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "sample-aws-pricing-calculator-mcp": "1.2.8"
+  }
+}

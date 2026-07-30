@@ -1,0 +1,44 @@
+[project]
+name = "cdp-aws-estimator"
+version = "0.1.0"
+description = "Automate Cloudera CDP workbook → AWS Pricing Calculator estimates for funding applications"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Nijjwol Lamsal" }]
+maintainers = [{ name = "Nijjwol Lamsal" }]
+license = { text = "MIT" }
+keywords = ["aws", "pricing", "cloudera", "cdp", "calculator"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+]
+
+[project.urls]
+Homepage = "https://github.com/nijjwol23"
+dependencies = [
+    "openpyxl>=3.1.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+cdp-aws-estimate = "cdp_aws_estimator.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cdp_aws_estimator = ["../config/aliases.yaml"]
