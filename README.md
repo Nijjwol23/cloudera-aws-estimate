@@ -47,9 +47,9 @@ If you see `bad interpreter: /Users/njlamsal/pricing-automation/.venv/...`, dele
 ```bash
 cdp-aws-estimate \
   "/path/to/AUTOMATION- CDP on AWS Pricing Calculator -v7.xlsx" \
-  --customer "Acme Corp" \
-  --manifest-out acme-manifest.json \
-  --report-out acme-report.txt \
+  --customer "Example Corp" \
+  --manifest-out example-manifest.json \
+  --report-out example-report.txt \
   --create-link
 ```
 
