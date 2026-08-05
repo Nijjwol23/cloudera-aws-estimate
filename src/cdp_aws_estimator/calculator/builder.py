@@ -1,10 +1,33 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
 from cdp_aws_estimator.models import EstimateManifest
+
+_NODE_DEPS = (
+    "node_modules/@modelcontextprotocol/sdk",
+    "node_modules/sample-aws-pricing-calculator-mcp",
+)
+
+
+def _ensure_node_bridge(root: Path) -> None:
+    if not shutil.which("node"):
+        raise RuntimeError(
+            "Node.js is required for --create-link. Install Node 18+ then run:\n"
+            f"  cd {root}\n"
+            "  npm install"
+        )
+    missing = [dep for dep in _NODE_DEPS if not (root / dep).exists()]
+    if missing:
+        raise RuntimeError(
+            "Node dependencies are missing (npm install was not run). From the repo root:\n"
+            f"  cd {root}\n"
+            "  npm install\n"
+            "Then re-run with --create-link."
+        )
 
 
 def create_calculator_estimate(
@@ -16,6 +39,7 @@ def create_calculator_estimate(
     script = root / "scripts" / "build_estimate.mjs"
     if not script.exists():
         raise FileNotFoundError(f"Estimate builder script not found: {script}")
+    _ensure_node_bridge(root)
 
     manifest_path = root / ".tmp_manifest.json"
     manifest_path.write_text(json.dumps(manifest.to_dict(), indent=2), encoding="utf-8")

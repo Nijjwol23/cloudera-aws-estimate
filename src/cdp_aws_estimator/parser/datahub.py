@@ -33,15 +33,24 @@ def discover_summary_datahub_tabs(workbook: Workbook) -> list[str]:
     if "Summary" not in workbook.sheetnames:
         return []
     ws = workbook["Summary"]
+    sheet_names = set(workbook.sheetnames)
     tabs: list[str] = []
+    seen: set[str] = set()
     for row_idx in range(20, 40):
-        tab_name = ws.cell(row_idx, 3).value
-        if not tab_name or not isinstance(tab_name, str):
-            continue
-        if tab_name.startswith("="):
-            continue
-        if is_datahub_tab(tab_name):
-            tabs.append(tab_name.strip())
+        # Column C often holds tab refs; some workbooks put the tab name in column D
+        # (Product Name) with column C pointing at another sheet or copy label.
+        for col_idx in (3, 4):
+            tab_name = ws.cell(row_idx, col_idx).value
+            if not tab_name or not isinstance(tab_name, str):
+                continue
+            if tab_name.startswith("="):
+                continue
+            tab_name = tab_name.strip()
+            if tab_name not in sheet_names or not is_datahub_tab(tab_name):
+                continue
+            if tab_name not in seen:
+                tabs.append(tab_name)
+                seen.add(tab_name)
     return tabs
 
 

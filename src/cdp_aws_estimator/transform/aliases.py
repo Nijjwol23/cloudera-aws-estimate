@@ -62,9 +62,21 @@ def normalize_tab_name(name: str) -> str:
     return name.strip()
 
 
+_DATAHUB_TAB_EXCLUDE = frozenset(
+    {
+        "cldr pricing - dh",
+    }
+)
+
+
 def is_datahub_tab(name: str) -> bool:
     normalized = normalize_tab_name(name).lower()
-    return normalized.startswith("datahub") or normalized == "data hub"
+    if normalized in _DATAHUB_TAB_EXCLUDE:
+        return False
+    if normalized.startswith("datahub") or normalized == "data hub":
+        return True
+    # Workbooks often name Data Hub tabs "{Template} DH" instead of "Datahub …"
+    return normalized.endswith(" dh")
 
 
 def datahub_group_name(tab_name: str, template_name: str) -> str:

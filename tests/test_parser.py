@@ -3,11 +3,12 @@ from __future__ import annotations
 import pytest
 
 from cdp_aws_estimator.parser.workbook import build_manifest
-from cdp_aws_estimator.transform.aliases import alias_purpose, is_ec2_instance_type, parse_rds_type
+from cdp_aws_estimator.transform.aliases import alias_purpose, is_datahub_tab, is_ec2_instance_type, parse_rds_type
 
 
 WORKBOOK = "/Users/njlamsal/Downloads/AUTOMATION-  CDP on AWS Pricing Calculator -v7.xlsx"
 V5_WORKBOOK = "/Users/njlamsal/Downloads/AUTOMATION of WORKING COPY of Solutions CDP on AWS Pricing Calculator - v5 (1).xlsx"
+THREESUN_WORKBOOK = "/Users/njlamsal/Downloads/Copy of 3Sun - AWS Calculator.xlsx"
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +62,33 @@ def test_ec2_instance_types():
     assert is_ec2_instance_type("r6id.8xlarge")
     assert is_ec2_instance_type("p4d.24xlarge")
     assert not is_ec2_instance_type("gp2")
+
+
+def test_datahub_tab_detection():
+    assert is_datahub_tab("Datahub 1")
+    assert is_datahub_tab("Datahub DF")
+    assert is_datahub_tab("Flow Management DH")
+    assert is_datahub_tab("Streams Messaging DH")
+    assert not is_datahub_tab("CLDR Pricing - DH")
+    assert not is_datahub_tab("CDE")
+
+
+@pytest.fixture(scope="module")
+def threesun_manifest():
+    if not __import__("pathlib").Path(THREESUN_WORKBOOK).exists():
+        pytest.skip(f"3Sun workbook not found: {THREESUN_WORKBOOK}")
+    return build_manifest(THREESUN_WORKBOOK, "3sun")
+
+
+def test_threesun_datahub_groups(threesun_manifest):
+    datahub_groups = [g for g in threesun_manifest.groups if g.name.startswith("Data Hub -")]
+    names = {g.name for g in datahub_groups}
+    assert len(datahub_groups) == 2
+    assert "Data Hub - Flow Management - Nifi 2 Heavy Duty" in names
+    assert "Data Hub - Streams Messaging Heavy Duty" in names
+    totals = {g.name: g.sheet_aws_total for g in datahub_groups}
+    assert abs((totals["Data Hub - Flow Management - Nifi 2 Heavy Duty"] or 0) - 3741.3) < 1
+    assert abs((totals["Data Hub - Streams Messaging Heavy Duty"] or 0) - 3953.24) < 1
 
 
 def test_data_mart_service_count(v5_manifest):

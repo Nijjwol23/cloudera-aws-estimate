@@ -68,8 +68,9 @@ cdp-aws-estimate \
 The parser supports:
 
 - **v7 style:** `Datahub 1` with template selected in `A1` (e.g. `Streams Messaging Heavy Duty`)
+- **Named DH tabs:** `Flow Management DH`, `Streams Messaging DH` (template in `A1`)
 - **Duplicated tabs:** `Datahub DF`, `Datahub DE`, `Datahub DW`, etc.
-- **Summary chain:** reads Summary column C (~rows 22+) for additional Datahub tab references
+- **Summary chain:** reads Summary columns C and D (~rows 22+) for additional Datahub tab references
 
 Each enabled Datahub tab becomes its own calculator group:
 
