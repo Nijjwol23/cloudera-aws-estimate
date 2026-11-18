@@ -12,6 +12,8 @@ from cdp_aws_estimator.parser.summary import (
     parse_datalake_groups,
     parse_service_tab,
     parse_storage_group,
+    parse_summary_cluster_groups,
+    parse_summary_misc_groups,
     parse_summary_region,
 )
 from cdp_aws_estimator.transform.aliases import load_aliases
@@ -35,6 +37,9 @@ def build_manifest(workbook_path: str | Path, customer: str) -> EstimateManifest
             groups.append(group)
 
     groups.extend(parse_all_datahub_groups(workbook, aliases))
+
+    groups.extend(parse_summary_cluster_groups(workbook, aliases, groups))
+    groups.extend(parse_summary_misc_groups(workbook, groups))
 
     storage = parse_storage_group(workbook)
     if storage:

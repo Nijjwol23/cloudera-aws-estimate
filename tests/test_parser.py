@@ -9,6 +9,7 @@ from cdp_aws_estimator.transform.aliases import alias_purpose, is_datahub_tab, i
 WORKBOOK = "/Users/njlamsal/Downloads/AUTOMATION-  CDP on AWS Pricing Calculator -v7.xlsx"
 V5_WORKBOOK = "/Users/njlamsal/Downloads/AUTOMATION of WORKING COPY of Solutions CDP on AWS Pricing Calculator - v5 (1).xlsx"
 THREESUN_WORKBOOK = "/Users/njlamsal/Downloads/Copy of 3Sun - AWS Calculator.xlsx"
+CENCOSUD_WORKBOOK = "/Users/njlamsal/Downloads/Cencosud-CDP-on-AWS.xlsx"
 
 
 @pytest.fixture(scope="module")
@@ -99,3 +100,53 @@ def test_data_mart_service_count(v5_manifest):
     descriptions = {s.description for s in data_mart.services if hasattr(s, "description")}
     assert descriptions == {"Master Node", "Executor Node", "Coordinator Node"}
     assert abs((data_mart.sheet_aws_total or 0) - 2935.8) < 1
+
+
+@pytest.fixture(scope="module")
+def cencosud_manifest():
+    if not __import__("pathlib").Path(CENCOSUD_WORKBOOK).exists():
+        pytest.skip(f"Cencosud workbook not found: {CENCOSUD_WORKBOOK}")
+    return build_manifest(CENCOSUD_WORKBOOK, "Cencosud")
+
+
+def test_cencosud_flow_management_groups(cencosud_manifest):
+    flow_groups = [
+        g for g in cencosud_manifest.groups if g.name.startswith("Flow Management -")
+    ]
+    assert len(flow_groups) == 6
+    regions = {g.name.split(" - ")[1] for g in flow_groups}
+    assert regions == {"Chile", "Colombia", "Peru Prod", "Peru Dev", "Arg Prod", "Arg Test"}
+
+
+def test_cencosud_summary_total(cencosud_manifest):
+    from cdp_aws_estimator.parser.summary import parse_summary_grand_total
+    from cdp_aws_estimator.parser.workbook import load_workbook
+
+    summary_total = parse_summary_grand_total(load_workbook(CENCOSUD_WORKBOOK))
+    assert abs(cencosud_manifest.sheet_aws_total - summary_total) < 1
+    assert len(cencosud_manifest.groups) == 9
+
+
+def test_resolve_cluster_tab_uses_product_label_prefix():
+    from pathlib import Path
+
+    if not Path(CENCOSUD_WORKBOOK).exists():
+        pytest.skip(f"Cencosud workbook not found: {CENCOSUD_WORKBOOK}")
+
+    import openpyxl
+
+    from cdp_aws_estimator.parser.summary import resolve_cluster_tab
+
+    workbook = openpyxl.load_workbook(CENCOSUD_WORKBOOK, data_only=True)
+    tab = resolve_cluster_tab(
+        workbook,
+        "Flow Management - Chile - Flow Management Heavy Duty",
+        "Copy of Summary",
+    )
+    assert tab == "Flow Management - Chile"
+    tab = resolve_cluster_tab(
+        workbook,
+        "Flow Management - Colombia - Flow Management Heavy Duty",
+        "Flow Management - Chile",
+    )
+    assert tab == "Flow Management - Colombia"

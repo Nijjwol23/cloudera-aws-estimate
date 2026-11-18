@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from openpyxl.workbook.workbook import Workbook
 
 from cdp_aws_estimator.models import EstimateGroup, S3Service
+from cdp_aws_estimator.parser.datahub import parse_datahub_tab
 from cdp_aws_estimator.parser.resource_table import (
     KNOWN_HEADERS,
     find_header_row,
     find_total_aws,
     hours_column,
+    is_cluster_worksheet,
     parse_resource_table,
 )
 from cdp_aws_estimator.transform.aliases import to_float
@@ -20,6 +23,181 @@ DATALAKE_GROUPS = {
     "DataLake - Enterprise Duty": ("Enterprise Duty", "Data Lake Core"),
     "DataLake - Medium Duty": ("Medium Duty", "Data Lake Core"),
 }
+
+SUMMARY_BILLING_START_ROW = 9
+SUMMARY_LABEL_COL = 4
+SUMMARY_TAB_HINT_COL = 3
+SUMMARY_AWS_COL = 5
+
+_SKIP_SUMMARY_LABEL_PREFIXES = (
+    "total",
+    "discount",
+    "total año",
+    "total ano",
+    "only ",
+)
+
+
+@dataclass(frozen=True)
+class SummaryBillingRow:
+    product_label: str
+    aws_total: float
+    tab_hint: str | None
+    row: int
+
+
+def parse_summary_billing_rows(workbook: Workbook) -> list[SummaryBillingRow]:
+    if "Summary" not in workbook.sheetnames:
+        return []
+    ws = workbook["Summary"]
+    rows: list[SummaryBillingRow] = []
+    for row_idx in range(SUMMARY_BILLING_START_ROW, ws.max_row + 1):
+        label = ws.cell(row_idx, SUMMARY_LABEL_COL).value
+        aws_value = ws.cell(row_idx, SUMMARY_AWS_COL).value
+        if not label or not isinstance(aws_value, (int, float)) or aws_value <= 0:
+            continue
+        product_label = str(label).strip()
+        normalized = normalize_summary_label(product_label)
+        if any(normalized.startswith(prefix) for prefix in _SKIP_SUMMARY_LABEL_PREFIXES):
+            continue
+        tab_hint = ws.cell(row_idx, SUMMARY_TAB_HINT_COL).value
+        hint = str(tab_hint).strip() if tab_hint and isinstance(tab_hint, str) else None
+        if hint and hint.startswith("="):
+            hint = None
+        rows.append(
+            SummaryBillingRow(
+                product_label=product_label,
+                aws_total=float(aws_value),
+                tab_hint=hint,
+                row=row_idx,
+            )
+        )
+    return rows
+
+
+def is_datalake_summary_label(label: str) -> bool:
+    return normalize_summary_label(label).startswith("datalake")
+
+
+def is_storage_summary_label(label: str) -> bool:
+    return "s3 storage" in normalize_summary_label(label)
+
+
+def resolve_cluster_tab(
+    workbook: Workbook,
+    product_label: str,
+    tab_hint: str | None,
+) -> str | None:
+    sheet_names = set(workbook.sheetnames)
+
+    def valid_cluster_tab(name: str) -> bool:
+        return name in sheet_names and is_cluster_worksheet(workbook[name])
+
+    prefix_candidates: list[str] = []
+    if product_label in sheet_names:
+        prefix_candidates.append(product_label)
+    for name in workbook.sheetnames:
+        if product_label.startswith(f"{name} - "):
+            prefix_candidates.append(name)
+    if prefix_candidates:
+        match = max(prefix_candidates, key=len)
+        if valid_cluster_tab(match):
+            return match
+
+    parts = [part.strip() for part in product_label.split(" - ") if part.strip()]
+    for end in range(len(parts), 0, -1):
+        candidate = " - ".join(parts[:end])
+        if valid_cluster_tab(candidate):
+            return candidate
+
+    if tab_hint and valid_cluster_tab(tab_hint):
+        return tab_hint
+
+    embedded: list[str] = []
+    for name in workbook.sheetnames:
+        if name in product_label and valid_cluster_tab(name):
+            embedded.append(name)
+    if embedded:
+        return max(embedded, key=len)
+    return None
+
+
+def parse_summary_cluster_groups(
+    workbook: Workbook,
+    aliases: dict[str, str],
+    existing_groups: list[EstimateGroup],
+) -> list[EstimateGroup]:
+    handled_tabs = {group.source_tab for group in existing_groups}
+    handled_labels = {normalize_summary_label(group.name) for group in existing_groups}
+    groups: list[EstimateGroup] = []
+
+    for billing_row in parse_summary_billing_rows(workbook):
+        if is_datalake_summary_label(billing_row.product_label):
+            continue
+        if is_storage_summary_label(billing_row.product_label):
+            continue
+
+        tab_name = resolve_cluster_tab(
+            workbook,
+            billing_row.product_label,
+            billing_row.tab_hint,
+        )
+        if not tab_name or tab_name in handled_tabs:
+            continue
+
+        label_key = normalize_summary_label(billing_row.product_label)
+        if label_key in handled_labels:
+            continue
+
+        group = parse_datahub_tab(
+            workbook,
+            tab_name,
+            aliases,
+            group_name=billing_row.product_label,
+        )
+        if not group or not group.services:
+            continue
+
+        group.sheet_aws_total = billing_row.aws_total
+        groups.append(group)
+        handled_tabs.add(tab_name)
+        handled_labels.add(label_key)
+
+    return groups
+
+
+def parse_summary_misc_groups(
+    workbook: Workbook,
+    existing_groups: list[EstimateGroup],
+) -> list[EstimateGroup]:
+    """Summary line items with AWS cost but no cluster worksheet (e.g. Private Link)."""
+    handled_labels = {normalize_summary_label(group.name) for group in existing_groups}
+    groups: list[EstimateGroup] = []
+
+    for billing_row in parse_summary_billing_rows(workbook):
+        if is_datalake_summary_label(billing_row.product_label):
+            continue
+        if is_storage_summary_label(billing_row.product_label):
+            continue
+
+        label_key = normalize_summary_label(billing_row.product_label)
+        if label_key in handled_labels:
+            continue
+
+        if resolve_cluster_tab(workbook, billing_row.product_label, billing_row.tab_hint):
+            continue
+
+        groups.append(
+            EstimateGroup(
+                name=billing_row.product_label,
+                source_tab="Summary",
+                services=[],
+                sheet_aws_total=billing_row.aws_total,
+            )
+        )
+        handled_labels.add(label_key)
+
+    return groups
 
 
 def parse_datalake_groups(workbook: Workbook, aliases: dict[str, str]) -> list[EstimateGroup]:
@@ -167,6 +345,20 @@ def apply_summary_sheet_totals(workbook: Workbook, groups: list[EstimateGroup]) 
             aws_total = find_summary_aws_for_label(ws, "s3 storage")
             if aws_total is not None:
                 group.sheet_aws_total = aws_total
+            continue
+
+        if group.name == "Data Lake Core":
+            section_label: str | None = None
+            if group.source_tab.startswith("Datalake (") and group.source_tab.endswith(")"):
+                section_label = group.source_tab[len("Datalake (") : -1]
+            for product_name, (datalake_section, _) in DATALAKE_GROUPS.items():
+                if section_label and datalake_section != section_label:
+                    continue
+                aws_total = find_summary_aws_for_label(ws, product_name)
+                if aws_total is None:
+                    continue
+                group.sheet_aws_total = aws_total
+                break
             continue
 
         best_match: float | None = None

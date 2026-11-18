@@ -1,0 +1,8 @@
+"DataLake Master Node (CDP cluster)": "DL Master"
+"Master Node*": "Master Node"
+"Leader Node*": "Leader Node"
+"FreeIPA Service": "FreeIPA"
+"IDBroker Service": "IDBroker"
+"Liftie Infrastructure Node": "Liftie Infra"
+"Liftie DEX Base Node": "Liftie DEX"
+"Azure Kubernetes Cluster": "AKS Cluster"

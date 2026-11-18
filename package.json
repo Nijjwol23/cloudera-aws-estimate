@@ -5,6 +5,7 @@
   "author": "Nijjwol Lamsal (https://github.com/nijjwol23)",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
+    "playwright": "^1.51.0",
     "sample-aws-pricing-calculator-mcp": "1.2.8"
   }
 }

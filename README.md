@@ -1,6 +1,9 @@
-# CDP → AWS Pricing Calculator
+# CDP → AWS / Azure Pricing Calculators
 
-Convert a Cloudera CDP on AWS pricing spreadsheet into a grouped [AWS Pricing Calculator](https://calculator.aws/) estimate.
+Convert Cloudera CDP pricing spreadsheets into grouped cloud calculator estimates:
+
+- **AWS:** [AWS Pricing Calculator](https://calculator.aws/) with optional `--create-link`
+- **Azure:** [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) via grouped import workbook (`--import-out`)
 
 **Author:** [Nijjwol Lamsal](https://github.com/nijjwol23)
 
@@ -42,7 +45,7 @@ npm install
 
 If you see `bad interpreter: /Users/njlamsal/pricing-automation/.venv/...`, delete `.venv` and run `./setup.sh` again.
 
-## Usage
+## Usage (AWS)
 
 ```bash
 cdp-aws-estimate \
@@ -52,6 +55,28 @@ cdp-aws-estimate \
   --report-out example-report.txt \
   --create-link
 ```
+
+## Usage (Azure)
+
+This tool parses the CDP on Azure workbook, validates totals against the Summary sheet, and can publish a **shareable calculator URL** with `--create-link` (browser automation via Playwright — Microsoft requires sign-in to enable **Share estimate**).
+
+```bash
+cdp-azure-estimate \
+  "/path/to/CDP on Azure Pricing Calculator -v7.xlsx" \
+  --customer "Example Corp" \
+  --manifest-out azure-manifest.json \
+  --create-link --headed
+```
+
+First run: use `--headed`, sign in when the browser opens; auth is saved to `.azure-calculator-auth.json` for later headless runs.
+
+Optional manual helper workbook:
+
+```bash
+cdp-azure-estimate ... --import-out azure-calculator-import.xlsx
+```
+
+Install browser deps once: `npm install && npx playwright install chromium`
 
 ### Flags
 

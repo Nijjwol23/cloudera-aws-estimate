@@ -96,7 +96,13 @@ def find_datahub_section(ws, template_name: str) -> tuple[int, int] | None:
     return None
 
 
-def parse_datahub_tab(workbook: Workbook, tab_name: str, aliases: dict[str, str]) -> EstimateGroup | None:
+def parse_datahub_tab(
+    workbook: Workbook,
+    tab_name: str,
+    aliases: dict[str, str],
+    *,
+    group_name: str | None = None,
+) -> EstimateGroup | None:
     ws = workbook[tab_name]
     template_name = selected_template_name(ws)
     section = find_datahub_section(ws, template_name)
@@ -141,7 +147,7 @@ def parse_datahub_tab(workbook: Workbook, tab_name: str, aliases: dict[str, str]
         sheet_total = find_total_aws(ws, header_row, columns)
 
     return EstimateGroup(
-        name=datahub_group_name(tab_name, template_name),
+        name=group_name or datahub_group_name(tab_name, template_name),
         source_tab=tab_name,
         services=services,
         sheet_aws_total=sheet_total or sum_service_costs(services),

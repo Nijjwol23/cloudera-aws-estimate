@@ -1,13 +1,13 @@
 [project]
-name = "cdp-aws-estimator"
-version = "0.1.0"
-description = "Automate Cloudera CDP workbook → AWS Pricing Calculator estimates for funding applications"
+name = "cdp-cloud-pricing"
+version = "0.2.0"
+description = "Automate Cloudera CDP workbooks → AWS and Azure pricing calculator estimates"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Nijjwol Lamsal" }]
 maintainers = [{ name = "Nijjwol Lamsal" }]
 license = { text = "MIT" }
-keywords = ["aws", "pricing", "cloudera", "cdp", "calculator"]
+keywords = ["aws", "azure", "pricing", "cloudera", "cdp", "calculator"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -18,17 +18,18 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Office/Business :: Financial",
 ]
-
-[project.urls]
-Homepage = "https://github.com/nijjwol23"
 dependencies = [
     "openpyxl>=3.1.0",
     "pyyaml>=6.0",
     "requests>=2.31.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/nijjwol23"
+
 [project.scripts]
 cdp-aws-estimate = "cdp_aws_estimator.cli:main"
+cdp-azure-estimate = "cdp_azure_estimator.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
@@ -42,3 +43,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 cdp_aws_estimator = ["../config/aliases.yaml"]
+cdp_azure_estimator = ["../config/azure_aliases.yaml"]

@@ -23,6 +23,29 @@ KNOWN_HEADERS = frozenset(
 )
 
 
+def is_cluster_worksheet(ws: Worksheet) -> bool:
+    """True when a sheet has the Purpose / Resource Type cluster cost table."""
+    header = find_header_row(ws, max_scan=250)
+    if not header:
+        return False
+    header_row, columns = header
+    purpose_col = columns.get("Purpose")
+    type_col = columns.get("Resource Type")
+    count_col = columns.get("Resource Count")
+    hours_col = hours_column(columns)
+    if not all((purpose_col, type_col, count_col, hours_col)):
+        return False
+    for row_idx in range(header_row + 1, min(ws.max_row, header_row + 250) + 1):
+        resource_type = ws.cell(row_idx, type_col).value
+        if resource_type is None or str(resource_type).strip() == "":
+            continue
+        count = to_float(ws.cell(row_idx, count_col).value)
+        hours = to_float(ws.cell(row_idx, hours_col).value)
+        if count > 0 and hours > 0:
+            return True
+    return False
+
+
 def find_header_row(ws: Worksheet, max_scan: int = 40) -> tuple[int, dict[str, int]] | None:
     for row_idx in range(1, min(max_scan, ws.max_row + 1)):
         values = [
